@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>电商评论情感分类</title>
+<style>
+  :root {
+    --bg: #08080f; --card: rgba(255,255,255,0.06); --border: rgba(255,255,255,0.12);
+    --text: #eef0ff; --muted: #9aa0c3;
+    --grad: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #3b82f6);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: -apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif; overflow-x: hidden; padding: 90px 20px 50px; position: relative; }
+
+  /* 3D 背景 */
+  .scene { position: fixed; inset: 0; z-index: -2; perspective: 1200px; overflow: hidden; }
+  .blob { position: absolute; width: 55vmax; height: 55vmax; border-radius: 50%; filter: blur(70px); opacity: .55; will-change: transform; }
+  .b1 { background: radial-gradient(circle,#6366f1 0%,transparent 70%); top:-20%; left:-15%; animation: d1 18s ease-in-out infinite; }
+  .b2 { background: radial-gradient(circle,#ec4899 0%,transparent 70%); bottom:-25%; right:-15%; animation: d2 22s ease-in-out infinite; }
+  .b3 { background: radial-gradient(circle,#3b82f6 0%,transparent 70%); top:40%; left:60%; animation: d3 26s ease-in-out infinite; }
+  .b4 { background: radial-gradient(circle,#a855f7 0%,transparent 70%); bottom:10%; left:5%; animation: d4 20s ease-in-out infinite; }
+  @keyframes d1 { 0%,100%{transform:translate3d(0,0,0) scale(1)} 50%{transform:translate3d(8%,12%,-80px) scale(1.15)} }
+  @keyframes d2 { 0%,100%{transform:translate3d(0,0,0) scale(1)} 50%{transform:translate3d(-10%,-10%,-100px) scale(1.2)} }
+  @keyframes d3 { 0%,100%{transform:translate3d(0,0,0) scale(1)} 50%{transform:translate3d(-8%,15%,-120px) scale(1.1)} }
+  @keyframes d4 { 0%,100%{transform:translate3d(0,0,0) scale(1)} 50%{transform:translate3d(12%,-14%,-60px) scale(1.25)} }
+
+  /* 顶栏 */
+  .topbar { position: fixed; top:0; left:0; right:0; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:16px 26px; backdrop-filter: blur(14px); background: rgba(8,8,15,.55); border-bottom:1px solid var(--border); }
+  .brand { font-size:17px; font-weight:700; display:flex; align-items:center; gap:10px; }
+  .brand .dot { width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font-size:16px; background:var(--grad); box-shadow:0 6px 16px rgba(124,77,255,.4); }
+  .auth-area { display:flex; align-items:center; gap:12px; }
+  .ghost-btn { padding:8px 16px; border-radius:10px; cursor:pointer; font-size:13.5px; color:var(--text); background:rgba(255,255,255,.07); border:1px solid var(--border); transition:.15s; }
+  .ghost-btn:hover { background:rgba(255,255,255,.14); }
+  .ghost-btn.primary { background:var(--grad); border:none; box-shadow:0 6px 16px rgba(124,77,255,.35); }
+  .username { font-size:14px; color:#c7cbea; }
+
+  /* 布局 */
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+
+  .card { background: var(--card); border:1px solid var(--border); border-radius:26px; padding:34px 32px; backdrop-filter: blur(22px) saturate(140%); -webkit-backdrop-filter: blur(22px) saturate(140%); box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08); transition: transform .15s ease-out; }
+  .card h2 { font-size:19px; margin-bottom:6px; }
+  .card .subtitle { color: var(--muted); font-size:13px; margin-bottom:22px; line-height: 1.5; }
+
+  textarea { width:100%; min-height:110px; resize:vertical; background:rgba(0,0,0,.28); border:1px solid var(--border); border-radius:15px; color:var(--text); padding:15px; font-size:14.5px; font-family:inherit; line-height:1.6; outline:none; transition:.2s; }
+  textarea:focus { border-color:rgba(139,128,255,.7); box-shadow:0 0 0 4px rgba(99,102,241,.15); }
+
+  .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin-top:14px; padding:13px; border:none; cursor:pointer; border-radius:13px; font-size:15px; font-weight:600; color:#fff; background:var(--grad); background-size:200% 200%; transition:transform .15s, box-shadow .2s, background-position .4s; box-shadow:0 10px 26px rgba(124,77,255,.4); }
+  .btn:hover { transform:translateY(-2px); background-position:100% 100%; box-shadow:0 16px 34px rgba(124,77,255,.55); }
+  .btn:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+  .btn.ghost { background:rgba(255,255,255,.08); border:1px solid var(--border); box-shadow:none; }
+  .btn.ghost:hover { background:rgba(255,255,255,.14); box-shadow:none; }
+  .btn-row { display:flex; gap:10px; }
+  .spinner { width:18px; height:18px; border:2.5px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  /* 结果 */
+  #results { margin-top:22px; display:flex; flex-direction:column; gap:14px; }
+  .result { background:rgba(255,255,255,.045); border:1px solid var(--border); border-radius:15px; padding:16px 18px; animation:pop .35s ease both; }
+  @keyframes pop { from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
+  .r-text { color:#cdd2f0; font-size:14px; margin-bottom:12px; line-height:1.55; }
+  .r-tags { display:flex; flex-wrap:wrap; gap:9px; margin-bottom:14px; }
+  .badge { padding:6px 13px; border-radius:999px; font-size:12.5px; font-weight:600; }
+  .b-pos { background:rgba(52,211,153,.16); color:#5eead4; border:1px solid rgba(52,211,153,.4); }
+  .b-neg { background:rgba(248,113,113,.16); color:#fca5a5; border:1px solid rgba(248,113,113,.4); }
+  .meter { margin:9px 0; }
+  .meter .lab { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-bottom:5px; }
+  .meter .bar { height:7px; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; }
+  .meter .fill { height:100%; width:0; border-radius:999px; transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  .fallback-tag { display:inline-block; margin-top:4px; padding:4px 10px; border-radius:8px; font-size:12px; color:#fbbf24; background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.35); }
+
+  /* 分析报告 */
+  #analyzeResult { margin-top:20px; }
+  .overall { display:flex; align-items:center; gap:20px; background:rgba(255,255,255,.045); border:1px solid var(--border); border-radius:16px; padding:20px; }
+  .score-num { font-size:52px; font-weight:800; background:linear-gradient(120deg,#a5b4ff,#f0abfc,#67e8f9); -webkit-background-clip:text; background-clip:text; color:transparent; line-height:1; }
+  .stars { position:relative; display:inline-block; font-size:22px; line-height:1; letter-spacing:3px; }
+  .stars-bg { color:rgba(255,255,255,.16); }
+  .stars-fill { position:absolute; top:0; left:0; overflow:hidden; white-space:nowrap; color:#fbbf24; }
+  .score-sub { color:var(--muted); font-size:12.5px; margin-top:8px; }
+
+  .dims { margin-top:16px; display:flex; flex-direction:column; gap:12px; }
+  .dim-head { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; }
+  .dim-name { display:flex; align-items:center; gap:7px; color:#dfe3ff; }
+  .dim-name .dot { width:9px; height:9px; border-radius:50%; }
+  .dim-rate { color:var(--muted); font-size:12.5px; }
+  .dim-bar { height:9px; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; }
+  .dim-fill { height:100%; width:0; border-radius:999px; transition:width .8s cubic-bezier(.2,.8,.2,1); }
+
+  .pain { margin-top:16px; }
+  .pain h3 { font-size:14px; color:#fca5a5; margin-bottom:8px; }
+  .pain-item { font-size:13px; color:#cdd2f0; padding:8px 12px; background:rgba(248,113,113,.07); border:1px solid rgba(248,113,113,.2); border-radius:10px; margin-bottom:7px; line-height:1.5; }
+
+  /* 历史 */
+  .history-card { margin-top:22px; }
+  .history-card h2 { margin-bottom:14px; }
+  .h-item { background:rgba(255,255,255,.04); border:1px solid var(--border); border-radius:13px; padding:13px 16px; margin-bottom:10px; }
+  .h-top { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:7px; }
+  .h-text { color:#cdd2f0; font-size:13.5px; line-height:1.5; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .h-time { color:#6d7394; font-size:11.5px; white-space:nowrap; }
+  .h-tags { display:flex; flex-wrap:wrap; gap:7px; }
+  .h-empty { color:var(--muted); text-align:center; padding:22px; font-size:13.5px; }
+  .error { color:#fca5a5; background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.3); padding:13px 16px; border-radius:13px; font-size:14px; }
+
+  /* 弹窗 */
+  .modal-mask { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; padding:20px; }
+  .modal-mask.show { display:flex; }
+  .modal { position:relative; width:min(380px,100%); background:#12121f; border:1px solid var(--border); border-radius:22px; padding:30px 28px; box-shadow:0 30px 80px rgba(0,0,0,.6); animation:pop .3s ease both; }
+  .modal h3 { text-align:center; margin-bottom:22px; font-size:19px; }
+  .field { margin-bottom:14px; }
+  .field label { display:block; font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+  .field input { width:100%; padding:11px 13px; border-radius:10px; border:1px solid var(--border); background:rgba(0,0,0,.3); color:var(--text); font-size:14px; outline:none; }
+  .field input:focus { border-color:rgba(139,128,255,.7); }
+  .modal .btn { margin-top:6px; }
+  .switch { text-align:center; margin-top:14px; font-size:13px; color:var(--muted); }
+  .switch a { color:#a5b4ff; cursor:pointer; text-decoration:none; }
+  .modal-close { position:absolute; top:14px; right:16px; cursor:pointer; color:var(--muted); font-size:20px; }
+
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) { .card { padding:26px 20px; } .score-num { font-size:40px; } }
+</style>
+</head>
+<body>
+
+  <div class="scene"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div></div>
+
+  <div class="topbar">
+    <div class="brand"><span class="dot">🛒</span>电商评论情感分类</div>
+    <div class="auth-area" id="authArea"></div>
+  </div>
+
+  <div class="wrap">
+    <div class="grid">
+      <!-- 左：单条分类 -->
+      <div class="card">
+        <h2>💬 单条评论分类</h2>
+        <p class="subtitle">识别一条评论是好评还是差评，并判断主要在说哪个方面</p>
+        <textarea id="input" placeholder="粘贴一条电商评论，例如：物流很快第二天就到了，就是耳机音质一般…"></textarea>
+        <button class="btn" id="btn"><span class="spinner" id="spinner"></span><span id="btnText">开始分类</span></button>
+        <div id="results"></div>
+      </div>
+
+      <!-- 右：批量商品分析 -->
+      <div class="card">
+        <h2>📊 批量商品分析</h2>
+        <p class="subtitle">粘贴十几条评论（每行一条）或上传 txt 文件，从多个维度综合分析这个商品怎么样并打分</p>
+        <textarea id="batchInput" style="min-height:160px" placeholder="每行一条评论，例如：&#10;物流很快，第二天就到了&#10;耳机音质很差，用了两天就坏了&#10;性价比很高，很划算&#10;客服态度很好…"></textarea>
+        <div class="btn-row">
+          <button class="btn ghost" id="fileBtn">📁 上传文件</button>
+          <input type="file" id="fileInput" accept=".txt,.csv,.tsv" style="display:none">
+          <button class="btn" id="analyzeBtn"><span class="spinner" id="aSpinner"></span><span id="aBtnText">开始分析打分</span></button>
+        </div>
+        <div id="analyzeResult"></div>
+      </div>
+    </div>
+
+    <div class="card history-card" id="historyCard" style="display:none">
+      <h2>📜 我的历史评论</h2>
+      <div id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- 登录/注册弹窗 -->
+  <div class="modal-mask" id="modalMask">
+    <div class="modal">
+      <span class="modal-close" id="modalClose">✕</span>
+      <h3 id="modalTitle">登录</h3>
+      <div class="field"><label>用户名</label><input id="authUsername" autocomplete="username"></div>
+      <div class="field"><label>密码</label><input id="authPassword" type="password" autocomplete="current-password"></div>
+      <button class="btn" id="authSubmit">登录</button>
+      <div class="switch"><span id="switchText">还没有账号？</span> <a id="switchLink">去注册</a></div>
+      <div id="authMsg"></div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const ASPECT_COLORS = { '物流':'#60a5fa','质量':'#a78bfa','价格':'#fbbf24','客服':'#2dd4bf','包装':'#f472b6','其它':'#9ca3af' };
+let currentUser = null, authMode = 'login';
+
+function badge(text, cls) { return `<span class="badge ${cls}">${text}</span>`; }
+function meter(label, val, color) {
+  return `<div class="meter"><div class="lab"><span>${label}</span><span>${(val*100).toFixed(1)}%</span></div>
+    <div class="bar"><div class="fill" style="background:${color}" data-w="${val*100}"></div></div></div>`;
+}
+function starsHtml(score) {
+  const pct = Math.max(0, Math.min(100, score / 5 * 100)).toFixed(0);
+  return `<div class="stars"><div class="stars-bg">★★★★★</div><div class="stars-fill" style="width:${pct}%">★★★★★</div></div>`;
+}
+
+/* ===== 认证 ===== */
+function renderAuth() {
+  const area = $('authArea');
+  if (currentUser) {
+    area.innerHTML = `<span class="username">👤 ${currentUser.username}</span><button class="ghost-btn" id="logoutBtn">退出</button>`;
+    $('logoutBtn').onclick = logout;
+  } else {
+    area.innerHTML = `<button class="ghost-btn" id="loginBtn">登录</button><button class="ghost-btn primary" id="regBtn">注册</button>`;
+    $('loginBtn').onclick = () => openModal('login');
+    $('regBtn').onclick = () => openModal('register');
+  }
+}
+function openModal(mode) {
+  authMode = mode;
+  $('modalTitle').textContent = mode === 'login' ? '登录' : '注册';
+  $('authSubmit').textContent = mode === 'login' ? '登录' : '注册';
+  $('switchText').textContent = mode === 'login' ? '还没有账号？' : '已有账号？';
+  $('switchLink').textContent = mode === 'login' ? '去注册' : '去登录';
+  $('authMsg').innerHTML = ''; $('authPassword').value = '';
+  $('modalMask').classList.add('show');
+}
+function closeModal() { $('modalMask').classList.remove('show'); }
+$('modalClose').onclick = closeModal;
+$('modalMask').onclick = (e) => { if (e.target === $('modalMask')) closeModal(); };
+$('switchLink').onclick = () => openModal(authMode === 'login' ? 'register' : 'login');
+async function submitAuth() {
+  const username = $('authUsername').value.trim(), password = $('authPassword').value;
+  if (!username || !password) { $('authMsg').innerHTML = '<div class="error">请填写用户名和密码</div>'; return; }
+  const resp = await fetch(`/api/auth/${authMode}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username, password}) });
+  const data = await resp.json();
+  if (data.code === 200) {
+    if (authMode === 'login') { currentUser = data.user; renderAuth(); closeModal(); loadHistory(); }
+    else { $('authMsg').innerHTML = '<div class="error" style="background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.3);color:#5eead4">注册成功，请登录</div>'; $('authUsername').value=''; $('authPassword').value=''; }
+  } else { $('authMsg').innerHTML = `<div class="error">${data.message}</div>`; }
+}
+$('authSubmit').onclick = submitAuth;
+$('authPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAuth(); });
+async function logout() {
+  await fetch('/api/auth/logout', { method:'POST' });
+  currentUser = null; renderAuth();
+  $('historyCard').style.display = 'none'; $('historyList').innerHTML = '';
+}
+
+/* ===== 历史 ===== */
+async function loadHistory() {
+  const resp = await fetch('/api/history');
+  const data = await resp.json();
+  if (data.code !== 200) return;
+  const list = $('historyList');
+  $('historyCard').style.display = 'block';
+  if (!data.history.length) { list.innerHTML = '<div class="h-empty">还没有历史记录，分类一条评论就会自动保存</div>'; return; }
+  list.innerHTML = data.history.map(h => {
+    const pos = h.sentiment === '好评';
+    return `<div class="h-item"><div class="h-top"><div class="h-text">「${h.text}」</div><span class="h-time">${(h.created_at||'').slice(0,16)}</span></div>
+      <div class="h-tags">${badge((pos?'😊 ':'😞 ')+h.sentiment, pos?'b-pos':'b-neg')} ${badge('维度 · '+h.aspect, '')}
+      ${h.used_fallback ? '<span class="fallback-tag">⚡ DeepSeek 兜底</span>' : ''}</div></div>`;
+  }).join('');
+}
+
+/* ===== 单条分类 ===== */
+async function classify() {
+  const text = $('input').value.trim();
+  const resultsEl = $('results');
+  if (!text) { resultsEl.innerHTML = '<div class="error">请先输入评论内容</div>'; return; }
+  const btn = $('btn'), spinner = $('spinner'), btnText = $('btnText');
+  btn.disabled = true; spinner.style.display = 'block'; btnText.textContent = '分类中…'; resultsEl.innerHTML = '';
+  try {
+    const resp = await fetch('/api/v3/classify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text}) });
+    const data = await resp.json();
+    if (data.code !== 200) { resultsEl.innerHTML = `<div class="error">${data.message || '服务器出错'}</div>`; return; }
+    resultsEl.innerHTML = data.results.map(r => {
+      const pos = r.sentiment === '好评';
+      return `<div class="result"><div class="r-text">「${r.text}」</div>
+        <div class="r-tags">${badge((pos?'😊 ':'😞 ')+r.sentiment, pos?'b-pos':'b-neg')} ${badge('维度 · '+r.aspect, '')}</div>
+        ${meter('情感置信度', r.sent_confidence, pos?'#34d399':'#f87171')} ${meter('维度置信度', r.aspect_confidence, ASPECT_COLORS[r.aspect]||'#9ca3af')}
+        ${r.used_fallback ? '<span class="fallback-tag">⚡ 低置信度 · 已用 DeepSeek 兜底</span>' : ''}</div>`;
+    }).join('');
+    requestAnimationFrame(() => document.querySelectorAll('#results .fill').forEach(f => f.style.width = f.dataset.w + '%'));
+    if (currentUser && data.results.length) {
+      const r = data.results[0];
+      await fetch('/api/history', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text:r.text, sentiment:r.sentiment, aspect:r.aspect, sentiment_conf:r.sent_confidence, aspect_conf:r.aspect_confidence, used_fallback:r.used_fallback}) });
+      loadHistory();
+    }
+  } catch (e) { resultsEl.innerHTML = '<div class="error">无法连接后端服务，请确认已启动（python wsgi.py）</div>'; }
+  finally { btn.disabled = false; spinner.style.display = 'none'; btnText.textContent = '开始分类'; }
+}
+$('btn').onclick = classify;
+$('input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) classify(); });
+
+/* ===== 批量分析 ===== */
+$('fileBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => { $('batchInput').value = reader.result; };
+  reader.readAsText(f, 'utf-8');
+};
+
+function renderReport(d) {
+  const html = `
+    <div class="overall">
+      <div class="score-num">${d.overall_score}</div>
+      <div>
+        ${starsHtml(d.overall_score)}
+        <div class="score-sub">综合评分（满分 5 分）· 好评率 ${(d.overall_positive_rate*100).toFixed(0)}%<br>共 ${d.total} 条评论：${d.positive} 好评 / ${d.negative} 差评</div>
+      </div>
+    </div>
+    <div class="dims">
+      ${d.dimensions.map(dim => `
+        <div>
+          <div class="dim-head"><span class="dim-name"><span class="dot" style="background:${ASPECT_COLORS[dim.aspect]}"></span>${dim.aspect}</span>
+          <span class="dim-rate">好评率 ${(dim.positive_rate*100).toFixed(0)}% · 提及 ${dim.mentions} 条</span></div>
+          <div class="dim-bar"><div class="dim-fill" style="background:${ASPECT_COLORS[dim.aspect]}" data-w="${dim.positive_rate*100}"></div></div>
+        </div>`).join('')}
+    </div>
+    ${d.negative ? `<div class="pain"><h3>⚠️ 差评痛点（${d.negative} 条）</h3>
+      ${d.dimensions.flatMap(dim => dim.sample_negative.map(s => `<div class="pain-item">[${dim.aspect}] ${s}</div>`)).slice(0, 6).join('')}</div>` : ''}
+  `;
+  $('analyzeResult').innerHTML = html;
+  requestAnimationFrame(() => document.querySelectorAll('.dim-fill').forEach(f => f.style.width = f.dataset.w + '%'));
+}
+
+async function analyze() {
+  const texts = $('batchInput').value.split('\n').map(t => t.trim()).filter(Boolean);
+  const el = $('analyzeResult');
+  if (!texts.length) { el.innerHTML = '<div class="error">请先粘贴评论（每行一条）或上传文件</div>'; return; }
+  const btn = $('analyzeBtn'), spinner = $('aSpinner'), txt = $('aBtnText');
+  btn.disabled = true; spinner.style.display = 'block'; txt.textContent = '分析中…'; el.innerHTML = '';
+  try {
+    const resp = await fetch('/api/v3/analyze', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({texts}) });
+    const data = await resp.json();
+    if (data.code !== 200) { el.innerHTML = `<div class="error">${data.message || '服务器出错'}</div>`; return; }
+    renderReport(data);
+  } catch (e) { el.innerHTML = '<div class="error">无法连接后端服务</div>'; }
+  finally { btn.disabled = false; spinner.style.display = 'none'; txt.textContent = '开始分析打分'; }
+}
+$('analyzeBtn').onclick = analyze;
+
+/* ===== 初始化 ===== */
+(async function init() {
+  try { const r = await fetch('/api/auth/me'); currentUser = (await r.json()).user; } catch (e) {}
+  renderAuth();
+  if (currentUser) loadHistory();
+})();
+</script>
+</body>
+</html>

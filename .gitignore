@@ -1,0 +1,107 @@
+logs/
+model/
+*.db
+tmf.db
+
+# ==========================================
+# 1. Python 核心缓存与编译文件
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C 扩展文件
+*.so
+
+# 遗留的清单文件
+*.manifest
+*.spec
+
+# ==========================================
+# 2. 分发与打包 (Distribution / Packaging)
+# ==========================================
+bin/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==========================================
+# 3. 虚拟环境 (Virtual Environments)
+# ==========================================
+# 建议将所有虚拟环境统一命名（如 venv/ 或 .venv/）
+.venv/
+venv/
+ENV/
+env/
+ENV/src/
+.env/
+
+# Miniconda / Anaconda 导出的本地环境缓存（如果你把环境建在项目内）
+.conda/
+
+# ==========================================
+# 4. PyCharm / JetBrains IDE 配置
+# ==========================================
+.idea/
+# 如果你需要在团队内共享 PyCharm 的运行配置(Run Configurations)或代码风格，
+# 可以取消注释下面这几行，只排除个人本地配置：
+# .idea/*
+# !.idea/runConfigurations/
+# !.idea/codeStyles/
+
+# ==========================================
+# 5. 日志、数据与敏感文件
+# ==========================================
+*.log
+*.pot
+*.pyc
+
+# 敏感的本地环境变量配置文件（防止泄露 API Key、数据库密码）
+.env
+.env.local
+.env.*.local
+
+# ==========================================
+# 6. 测试与覆盖率 (Testing / Coverage)
+# ==========================================
+.htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# ==========================================
+# 7. Jupyter Notebook 缓存
+# ==========================================
+.ipynb_checkpoints
+
+# ==========================================
+# 8. 操作系统临时文件 (OS generated files)
+# ==========================================
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db

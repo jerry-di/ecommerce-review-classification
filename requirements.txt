@@ -1,0 +1,13 @@
+flask
+jieba
+pandas
+scikit-learn
+pytest
+requests
+fasttext
+torch
+modelscope
+transformers
+redis
+pymilvus
+milvus-lite
